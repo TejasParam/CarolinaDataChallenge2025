@@ -1,6 +1,6 @@
 """
 🚀 Space Economy Investment Advisor Chatbot
-Uses BEA space economy data analysis for investment insights
+Uses BEA space economy data analysis for investment insights + Local LLM for conversation
 """
 
 import streamlit as st
@@ -11,6 +11,32 @@ import subprocess
 import os
 from datetime import datetime
 import time
+import requests
+
+# ===== LOCAL LLM CONFIGURATION =====
+# Configure your local LLM settings here
+LOCAL_LLM_CONFIG = {
+    "url": "http://localhost:11434/api/generate",  # Ollama default
+    "model": "llama3.2:3b",  # Available: llama3.2:3b (fast), llama3:latest (larger)
+    "timeout": 30,  # Request timeout in seconds
+    "temperature": 0.7,  # Response creativity (0.0-2.0)
+    "max_tokens": 1000  # Maximum response length
+}
+
+# Alternative configurations (uncomment the one you want to use):
+# For OpenAI-compatible APIs (like LM Studio):
+# LOCAL_LLM_CONFIG = {
+#     "url": "http://localhost:1234/v1/chat/completions",
+#     "model": "local-model",
+#     "api_type": "openai"
+# }
+
+# For other local APIs:
+# LOCAL_LLM_CONFIG = {
+#     "url": "http://localhost:8080/generate",
+#     "model": "your-model-name"
+# }
+# ===================================
 
 # Page config
 st.set_page_config(
@@ -203,18 +229,7 @@ st.markdown("""
 class SpaceEconomyBot:
     def __init__(self):
         self.analysis_tools = self.setup_analysis_tools()
-        self.keywords = {
-            'investment': ['invest', 'investment', 'portfolio', 'returns', 'growth', 'profit'],
-            'resilience': ['resilient', 'resilience', 'stable', 'shock', 'crisis', 'covid'],
-            'growth': ['growth', 'growing', 'expansion', 'trend', 'increase'],
-            'industries': ['industry', 'sector', 'companies', 'business'],
-            'space': ['space', 'satellite', 'aerospace', 'launch', 'orbital', 'rocket'],
-            'defense': ['defense', 'military', 'national security'],
-            'manufacturing': ['manufacturing', 'production', 'tech', 'electronics'],
-            'forecast': ['predict', 'forecast', 'future', 'outlook', 'projection'],
-            'analysis': ['analyze', 'analysis', 'run', 'calculate', 'compute'],
-            'data': ['data', 'numbers', 'statistics', 'metrics', 'results']
-        }
+        self.llm_config = LOCAL_LLM_CONFIG
         
     def setup_analysis_tools(self):
         """Setup available analysis tools from your R script"""
@@ -388,36 +403,131 @@ class SpaceEconomyBot:
         
         return results
     
+    def query_local_llm(self, prompt, system_prompt=""):
+        """Query the local LLM with a prompt"""
+        try:
+            payload = {
+                "model": self.llm_config["model"],
+                "prompt": f"{system_prompt}\n\nUser: {prompt}\nAssistant:",
+                "stream": False,
+                "options": {
+                    "temperature": self.llm_config.get("temperature", 0.7),
+                    "max_tokens": self.llm_config.get("max_tokens", 1000)
+                }
+            }
+            
+            response = requests.post(
+                self.llm_config["url"],
+                json=payload,
+                timeout=self.llm_config.get("timeout", 30)
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result.get('response', 'No response from LLM')
+            else:
+                return f"LLM Error: {response.status_code}"
+                
+        except requests.exceptions.ConnectionError:
+            return f"🤖 **Local LLM not available**\n\nPlease start your local LLM:\n• **Ollama:** `ollama serve` then `ollama run {self.llm_config['model']}`\n• **LM Studio:** Start the local server\n• **Other:** Make sure your LLM is running on {self.llm_config['url']}"
+        except Exception as e:
+            return f"Error connecting to local LLM: {str(e)}"
+    
+    def get_analysis_context(self):
+        """Get current analysis data as context for the LLM"""
+        results = self.read_analysis_results()
+        
+        if isinstance(results, dict):
+            context = "CURRENT SPACE ECONOMY ANALYSIS DATA:\n\n"
+            
+            if results.get('top_investments'):
+                context += "TOP INVESTMENT OPPORTUNITIES:\n"
+                for i, inv in enumerate(results['top_investments'][:5], 1):
+                    context += f"{i}. {inv['industry']} (Overall: {inv['overall_score']}, Growth: {inv['growth']}, Resilience: {inv['resilience']})\n"
+                context += "\n"
+            
+            if results.get('resilient_sectors'):
+                context += "MOST RESILIENT SECTORS (2020 Shock):\n"
+                for i, sector in enumerate(results['resilient_sectors'][:5], 1):
+                    context += f"{i}. {sector['industry']} (Resilience Score: {sector['score']})\n"
+                context += "\n"
+            
+            if results.get('forecast_results', {}).get('best_predictable'):
+                context += "MOST PREDICTABLE SECTORS (Low MAPE):\n"
+                for pred in results['forecast_results']['best_predictable'][:3]:
+                    context += f"• {pred['industry']} (MAPE: {pred['mape']})\n"
+                context += "\n"
+            
+            return context
+        else:
+            return "No analysis data available. User should run fresh analysis first."
+    
     def categorize_question(self, question):
-        """Categorize user question based on keywords"""
+        """Determine if question needs analysis tools or general conversation"""
         question_lower = question.lower()
-        categories = []
         
-        for category, keywords in self.keywords.items():
-            if any(keyword in question_lower for keyword in keywords):
-                categories.append(category)
+        # Check for analysis-specific keywords
+        analysis_keywords = [
+            'run', 'analyze', 'fresh', 'analysis', 'calculate', 'compute',
+            'investment', 'invest', 'portfolio', 'recommendations',
+            'resilience', 'resilient', 'shock', 'covid', 'crisis',
+            'growth', 'growing', 'trends', 'expansion',
+            'forecast', 'predict', 'future', 'outlook',
+            'data', 'results', 'metrics', 'statistics'
+        ]
         
-        return categories if categories else ['general']
+        if any(keyword in question_lower for keyword in analysis_keywords):
+            return 'analysis'
+        else:
+            return 'conversation'
     
     def generate_response(self, question):
-        """Generate response based on question category and use analysis tools"""
-        categories = self.categorize_question(question)
+        """Generate response using local LLM with analysis data context"""
+        category = self.categorize_question(question)
         
-        # Check if user wants fresh analysis
+        # Check for specific analysis requests
         if any(word in question.lower() for word in ['run', 'analyze', 'fresh', 'new', 'update', 'calculate']):
             return self.run_fresh_analysis(question)
-        elif 'investment' in categories:
-            return self.investment_advice_with_data(question)
-        elif 'resilience' in categories:
-            return self.resilience_insights_with_data(question)
-        elif 'growth' in categories:
-            return self.growth_analysis_with_data(question)
-        elif 'forecast' in categories:
-            return self.forecast_insights_with_data(question)
-        elif 'industries' in categories or 'space' in categories:
-            return self.industry_insights_with_data(question)
-        else:
-            return self.general_space_info_with_data(question)
+        
+        # Get current analysis context
+        analysis_context = self.get_analysis_context()
+        
+        # Create system prompt for the LLM
+        system_prompt = f"""You are a Space Economy Investment Advisor AI assistant. You have access to real Bureau of Economic Analysis (BEA) space economy data from 2012-2023.
+
+{analysis_context}
+
+Your role:
+- Provide conversational, helpful responses about space economy investments
+- Use the analysis data above to answer questions with specific numbers and rankings
+- Be friendly and engaging while being professional
+- If asked about investments, resilience, growth, or forecasts, refer to the specific data above
+- If the user needs fresh analysis, suggest they ask to "run fresh analysis"
+- Keep responses concise but informative
+- Do NOT use emojis in your responses - use plain text only
+
+Remember: You are a space economy expert with access to real government data analysis."""
+
+        # Query the local LLM
+        response = self.query_local_llm(question, system_prompt)
+        
+        # If LLM fails, fall back to analysis-specific methods
+        if "LLM not available" in response or "Error" in response:
+            if category == 'analysis':
+                if 'investment' in question.lower():
+                    return self.investment_advice_with_data(question)
+                elif 'resilience' in question.lower():
+                    return self.resilience_insights_with_data(question)
+                elif 'growth' in question.lower():
+                    return self.growth_analysis_with_data(question)
+                elif 'forecast' in question.lower():
+                    return self.forecast_insights_with_data(question)
+                else:
+                    return self.general_space_info_with_data(question)
+            else:
+                return self.general_space_info_with_data(question)
+        
+        return response
     
     def run_fresh_analysis(self, question):
         """Run fresh analysis using R script"""
@@ -697,7 +807,7 @@ def main():
         st.session_state.messages = [
             {
                 "role": "assistant",
-                "content": "🛰️ Welcome! I'm your **Live Space Economy Investment Advisor** with integrated R analysis tools!\n\n🔧 **What I can do:**\n• **Run fresh analysis** using your R script and BEA data\n• **Investment recommendations** based on real-time calculations\n• **Market resilience analysis** from actual 2020 shock data\n• **Growth trend insights** from 12-year analysis\n• **Industry forecasts** with predictability metrics\n\n🚀 **Try these commands:**\n• 'Run fresh analysis' - Execute your R script\n• 'What are the best investments?' - Get live recommendations\n• 'Which sectors survived COVID?' - Resilience analysis\n• 'Show me growth trends' - Live growth data\n\n💡 **I use your actual `data_analysis_clean.r` script as a tool to provide real-time insights!**"
+                "content": "🛰️ **Welcome to your Space Economy Investment Advisor!**\n\nI'm powered by a local LLM and have access to real Bureau of Economic Analysis space economy data (2012-2023).\n\n🔧 **What I can do:**\n• **Conversational analysis** - Ask me anything about space investments!\n• **Run fresh analysis** using your R script and BEA data\n• **Investment recommendations** based on real-time calculations\n• **Market insights** from 12 years of government data\n\n🚀 **Try asking me:**\n• 'What makes a good space investment?'\n• 'Tell me about the space economy trends'\n• 'Which sectors should I avoid?'\n• 'Run fresh analysis' - Execute your R script\n\n💡 **I combine conversational AI with your actual analysis tools for the best insights!**\n\n*Note: Make sure Ollama is running locally for full conversational features.*"
             }
         ]
     
@@ -760,6 +870,22 @@ def main():
             response = st.session_state.bot.forecast_insights_with_data("forecast analysis")
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
+        
+        st.markdown("---")
+        
+        # LLM Status
+        st.markdown("### 🤖 AI Status")
+        try:
+            # Quick test of LLM availability
+            test_response = requests.get(st.session_state.bot.llm_config["url"].replace("/api/generate", ""), timeout=2)
+            if test_response.status_code == 200:
+                st.success(f"✅ Local LLM Connected")
+                st.caption(f"Model: {st.session_state.bot.llm_config['model']}")
+            else:
+                st.warning("⚠️ LLM Connection Issues")
+        except:
+            st.error("❌ Local LLM Offline")
+            st.caption("Start Ollama or your local LLM")
         
         st.markdown("---")
         
