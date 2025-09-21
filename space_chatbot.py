@@ -49,12 +49,10 @@ st.set_page_config(
 # Enhanced space theme CSS with animations
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-    
     .stApp {
         background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #000000 100%);
         color: #ffffff;
-        font-family: 'Orbitron', monospace;
+        font-family: Arial, sans-serif;
     }
     
     .main-header {
@@ -73,14 +71,14 @@ st.markdown("""
     
     .stTitle {
         color: #00bcd4 !important;
-        font-family: 'Orbitron', monospace !important;
+        font-family: Arial, sans-serif !important;
         font-weight: 900 !important;
         text-shadow: 0 0 20px #00bcd4 !important;
     }
     
     .stHeader {
         color: #64b5f6 !important;
-        font-family: 'Orbitron', monospace !important;
+        font-family: Arial, sans-serif !important;
         font-weight: 700 !important;
     }
     
@@ -89,7 +87,7 @@ st.markdown("""
         color: white !important;
         border: 2px solid #00bcd4 !important;
         border-radius: 10px !important;
-        font-family: 'Orbitron', monospace !important;
+        font-family: Arial, sans-serif !important;
     }
     
     .stTextInput > div > div > input:focus {
@@ -102,7 +100,7 @@ st.markdown("""
         border: none !important;
         color: white !important;
         font-weight: bold !important;
-        font-family: 'Orbitron', monospace !important;
+        font-family: Arial, sans-serif !important;
         border-radius: 25px !important;
         padding: 0.5rem 1.5rem !important;
         transition: all 0.3s ease !important;
@@ -200,13 +198,13 @@ st.markdown("""
         font-size: 2rem !important;
         font-weight: 900 !important;
         color: #00bcd4 !important;
-        font-family: 'Orbitron', monospace !important;
+        font-family: Arial, sans-serif !important;
     }
     
     .metric-label {
         font-size: 0.9rem !important;
         color: #64b5f6 !important;
-        font-family: 'Orbitron', monospace !important;
+        font-family: Arial, sans-serif !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -807,7 +805,7 @@ def main():
         st.session_state.messages = [
             {
                 "role": "assistant",
-                "content": "🛰️ **Welcome to your Space Economy Investment Advisor!**\n\nI'm powered by a local LLM and have access to real Bureau of Economic Analysis space economy data (2012-2023).\n\n🔧 **What I can do:**\n• **Conversational analysis** - Ask me anything about space investments!\n• **Run fresh analysis** using your R script and BEA data\n• **Investment recommendations** based on real-time calculations\n• **Market insights** from 12 years of government data\n\n🚀 **Try asking me:**\n• 'What makes a good space investment?'\n• 'Tell me about the space economy trends'\n• 'Which sectors should I avoid?'\n• 'Run fresh analysis' - Execute your R script\n\n💡 **I combine conversational AI with your actual analysis tools for the best insights!**\n\n*Note: Make sure Ollama is running locally for full conversational features.*"
+                "content": "**Welcome to your Space Economy Investment Advisor!**\n\nI'm powered by a local LLM and have access to real Bureau of Economic Analysis space economy data (2012-2023).\n\n**What I can do:**\n• **Conversational analysis** - Ask me anything about space investments!\n• **Run fresh analysis** using your R script and BEA data\n• **Investment recommendations** based on real-time calculations\n• **Market insights** from 12 years of government data\n\n**Try asking me:**\n• 'What makes a good space investment?'\n• 'Tell me about the space economy trends'\n• 'Which sectors should I avoid?'\n• 'Run fresh analysis' - Execute your R script\n\n**I combine conversational AI with your actual analysis tools for the best insights!**\n\n*Note: Make sure Ollama is running locally for full conversational features.*"
             }
         ]
     
@@ -837,35 +835,35 @@ def main():
     with col2:
         # Enhanced sidebar with space theme
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-        st.markdown("### 🚀 Analysis Tools")
+        st.markdown("### Analysis Tools")
         
         # Quick action buttons with proper handling
-        if st.button("🔄 Run Fresh Analysis", key="fresh_analysis", use_container_width=True):
+        if st.button("Run Fresh Analysis", key="fresh_analysis", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": "Run fresh space economy analysis"})
             with st.spinner("Running R analysis..."):
                 response = st.session_state.bot.run_fresh_analysis("run analysis")
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
         
-        if st.button("💰 Top Investment Picks", key="investments", use_container_width=True):
+        if st.button("Top Investment Picks", key="investments", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": "Show me top investment picks"})
             response = st.session_state.bot.investment_advice_with_data("investment advice")
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
         
-        if st.button("📈 Growth Leaders", key="growth", use_container_width=True):
+        if st.button("Growth Leaders", key="growth", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": "Show me growth leaders"})
             response = st.session_state.bot.growth_analysis_with_data("growth trends")
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
         
-        if st.button("🛡️ Resilient Sectors", key="resilience", use_container_width=True):
+        if st.button("Resilient Sectors", key="resilience", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": "Show me resilient sectors"})
             response = st.session_state.bot.resilience_insights_with_data("resilience analysis")
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
         
-        if st.button("🔮 Market Forecast", key="forecast", use_container_width=True):
+        if st.button("Market Forecast", key="forecast", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": "Show me market forecast"})
             response = st.session_state.bot.forecast_insights_with_data("forecast analysis")
             st.session_state.messages.append({"role": "assistant", "content": response})
@@ -874,34 +872,34 @@ def main():
         st.markdown("---")
         
         # LLM Status
-        st.markdown("### 🤖 AI Status")
+        st.markdown("### AI Status")
         try:
             # Quick test of LLM availability
             test_response = requests.get(st.session_state.bot.llm_config["url"].replace("/api/generate", ""), timeout=2)
             if test_response.status_code == 200:
-                st.success(f"✅ Local LLM Connected")
+                st.success(f"Local LLM Connected")
                 st.caption(f"Model: {st.session_state.bot.llm_config['model']}")
             else:
-                st.warning("⚠️ LLM Connection Issues")
+                st.warning("LLM Connection Issues")
         except:
-            st.error("❌ Local LLM Offline")
+            st.error("Local LLM Offline")
             st.caption("Start Ollama or your local LLM")
         
         st.markdown("---")
         
         # Analysis status with enhanced styling
         if os.path.exists('analysis_results.txt'):
-            st.success("✅ Analysis Results Available")
+            st.success("Analysis Results Available")
             mod_time = os.path.getmtime('analysis_results.txt')
             st.caption(f"Last updated: {datetime.fromtimestamp(mod_time).strftime('%Y-%m-%d %H:%M')}")
         else:
-            st.warning("⚠️ No analysis results found")
+            st.warning("No analysis results found")
             st.caption("Click 'Run Fresh Analysis' to generate")
         
         # Data source info
-        st.markdown("**🔧 Analysis Engine:** R Script Integration")
-        st.markdown("**📊 Data Source:** Bureau of Economic Analysis (2012-2023)")
-        st.markdown("**🎯 Analysis Period:** 12 years of space economy data")
+        st.markdown("**Analysis Engine:** R Script Integration")
+        st.markdown("**Data Source:** Bureau of Economic Analysis (2012-2023)")
+        st.markdown("**Analysis Period:** 12 years of space economy data")
         
         st.markdown('</div>', unsafe_allow_html=True)
 
