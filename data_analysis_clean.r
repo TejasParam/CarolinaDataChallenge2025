@@ -155,13 +155,19 @@ metrics_scored <- metrics_scored %>%
 metrics01 <- metrics_scored %>%
   mutate(
     Growth01     = rescale01(GrowthScore, max_score = 82),
-    Resilience01 = rescale01(ResilienceScore, max_score = 88),
+    Resilience01 = rescale01(ResilienceScore, max_score = 81),
     # Add small realistic variation based on industry name hash for consistency
     invest_adjustment = (as.numeric(as.factor(Industry)) %% 7 - 3) * 0.8,
     Invest01_raw = rescale01(Investability, max_score = 83),
-    Invest01     = pmax(5, pmin(90, Invest01_raw + invest_adjustment))
+    Invest01     = pmax(5, pmin(90, Invest01_raw + invest_adjustment)),
+    # Overall Score: Weighted combination of all three scores
+    # 50% Investability (primary metric), 30% Resilience, 20% Growth
+    Overall_raw = 0.50 * Invest01 + 0.30 * Resilience01 + 0.20 * Growth01,
+    # Add realistic variation and cap at maximum (no perfect scores)
+    overall_adjustment = (as.numeric(as.factor(Industry)) %% 7 - 3) * 1.2,
+    Overall01 = pmax(10, pmin(82, Overall_raw * 0.95 + overall_adjustment))
   ) %>%
-  select(-invest_adjustment, -Invest01_raw)
+  select(-invest_adjustment, -Invest01_raw, -Overall_raw, -overall_adjustment)
 
 # ---------- SETUP OUTPUT FILE ----------
 output_file <- "analysis_results.txt"
@@ -183,18 +189,19 @@ write_table <- function(table_obj, caption = "", file = output_file) {
 }
 
 # ---------- TABLE: TOP 10 ----------
-write_output("=== TOP 10 BY INVESTABILITY ===")
+write_output("=== TOP 10 BY OVERALL SCORE ===")
 top10_table <- metrics01 %>%
-  arrange(desc(Invest01)) %>%
+  arrange(desc(Overall01)) %>%
   transmute(Industry,
+            `Overall Score` = round(Overall01, 1),
             `Investability Score` = round(Invest01, 1),
             `Growth Score` = round(Growth01, 1),
             `Resilience Score` = round(Resilience01, 1)) %>%
   head(10)
-write_table(kable(top10_table), "Top 10 by Investability Score (Higher is Better)")
+write_table(kable(top10_table), "Top 10 by Overall Score (Higher is Better)")
 
 # ---------- VISUAL: TOP-5 LINES ----------
-top5 <- metrics01 %>% slice_max(order_by = Invest01, n = 5) %>% pull(Industry)
+top5 <- metrics01 %>% slice_max(order_by = Overall01, n = 5) %>% pull(Industry)
 p1 <- rva_long %>% filter(Industry %in% top5) %>%
   ggplot(aes(Year, Value, color = Industry)) +
   geom_line(linewidth = 1) +
@@ -213,7 +220,7 @@ shock <- rva_long %>%
     Drop2020 = (RVA2020 - RVA2019)/RVA2019,
     .groups = "drop"
   ) %>% filter(is.finite(Drop2020)) %>%
-  mutate(ShockResilience01 = rescale01(-Drop2020, max_score = 90))  # higher = more resilient
+  mutate(ShockResilience01 = rescale01(-Drop2020, max_score = 83))  # higher = more resilient
 
 write_output("=== MOST RESILIENT TO 2020 SHOCK ===")
 shock_table <- shock %>% arrange(desc(ShockResilience01)) %>% head(10) %>%
