@@ -211,6 +211,67 @@ p1 <- rva_long %>% filter(Industry %in% top5) %>%
 ggsave("top5_industries_plot.png", p1, width = 12, height = 8, dpi = 300)
 write_output("Top 5 Industries plot saved to: top5_industries_plot.png")
 
+# ---------- NEW VISUALIZATION 1: OVERALL SCORE BAR CHART ----------
+p_overall <- metrics01 %>%
+  arrange(desc(Overall01)) %>%
+  head(12) %>%
+  ggplot(aes(x = reorder(Industry, Overall01), y = Overall01, fill = Overall01)) +
+  geom_col(width = 0.7, alpha = 0.9) +
+  coord_flip() +
+  scale_fill_gradient(low = "#3498db", high = "#e74c3c", name = "Overall\nScore") +
+  labs(title = "Top Industries by Overall Score", 
+       subtitle = "Comprehensive ranking combining Investability, Growth, and Resilience",
+       x = NULL, y = "Overall Score") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", margin = margin(b = 5)),
+    plot.subtitle = element_text(size = 11, color = "gray40", margin = margin(b = 15)),
+    axis.text.y = element_text(size = 10),
+    legend.position = "right",
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
+  geom_text(aes(label = round(Overall01, 1)), hjust = -0.1, size = 3.5, fontface = "bold")
+
+ggsave("overall_score_ranking.png", p_overall, width = 14, height = 10, dpi = 300)
+write_output("Overall Score Ranking plot saved to: overall_score_ranking.png")
+
+# ---------- NEW VISUALIZATION 2: MULTI-METRIC COMPARISON ----------
+comparison_data <- metrics01 %>%
+  arrange(desc(Overall01)) %>%
+  head(8) %>%
+  select(Industry, Overall01, Invest01, Growth01, Resilience01) %>%
+  pivot_longer(cols = c(Overall01, Invest01, Growth01, Resilience01),
+               names_to = "Metric", values_to = "Score") %>%
+  mutate(
+    Metric = case_when(
+      Metric == "Overall01" ~ "Overall Score",
+      Metric == "Invest01" ~ "Investability",
+      Metric == "Growth01" ~ "Growth",
+      Metric == "Resilience01" ~ "Resilience"
+    ),
+    Metric = factor(Metric, levels = c("Overall Score", "Investability", "Growth", "Resilience"))
+  )
+
+p_comparison <- comparison_data %>%
+  ggplot(aes(x = reorder(Industry, -Score), y = Score, fill = Metric)) +
+  geom_col(position = "dodge", alpha = 0.8) +
+  scale_fill_manual(values = c("#2c3e50", "#e74c3c", "#f39c12", "#27ae60")) +
+  labs(title = "Multi-Metric Performance Comparison",
+       subtitle = "Top 8 Industries across all scoring dimensions",
+       x = NULL, y = "Score", fill = "Metric") +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray40", margin = margin(b = 15)),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("multi_metric_comparison.png", p_comparison, width = 16, height = 10, dpi = 300)
+write_output("Multi-Metric Comparison plot saved to: multi_metric_comparison.png")
+
 # ---------- 2020 SHOCK (STANDARDIZED) ----------
 shock <- rva_long %>%
   group_by(Industry) %>%
@@ -227,10 +288,64 @@ shock_table <- shock %>% arrange(desc(ShockResilience01)) %>% head(10) %>%
   transmute(Industry, `2020 Resilience Score` = round(ShockResilience01, 1))
 write_table(kable(shock_table), "Most Resilient to the 2020 Shock")
 
-p2 <- shock %>% arrange(desc(ShockResilience01)) %>% head(10) %>%
-  ggplot(aes(x = reorder(Industry, ShockResilience01), y = ShockResilience01)) +
-  geom_col() + coord_flip() +
-  labs(title="Resilience to 2020 Shock (Top 10)", x=NULL, y="Resilience Score")
+p2 <- shock %>% arrange(desc(ShockResilience01)) %>% head(12) %>%
+  ggplot(aes(x = reorder(Industry, ShockResilience01), y = ShockResilience01, fill = ShockResilience01)) +
+  geom_col(alpha = 0.8, width = 0.7) + 
+  coord_flip() +
+  scale_fill_gradient(low = "#e74c3c", high = "#27ae60", name = "Resilience\nScore") +
+  labs(title = "Industries Most Resilient to 2020 Economic Shock", 
+       subtitle = "Higher scores indicate better performance during the pandemic",
+       x = NULL, y = "2020 Resilience Score") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray40", margin = margin(b = 15)),
+    axis.text.y = element_text(size = 10),
+    legend.position = "right",
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
+  geom_text(aes(label = round(ShockResilience01, 1)), hjust = -0.1, size = 3.5, fontface = "bold")
+
+# ---------- NEW VISUALIZATION 4: PERFORMANCE HEATMAP ----------
+heatmap_data <- metrics01 %>%
+  arrange(desc(Overall01)) %>%
+  head(15) %>%
+  select(Industry, Overall01, Invest01, Growth01, Resilience01) %>%
+  mutate(across(c(Overall01, Invest01, Growth01, Resilience01), ~round(.x, 1))) %>%
+  pivot_longer(cols = c(Overall01, Invest01, Growth01, Resilience01),
+               names_to = "Metric", values_to = "Score") %>%
+  mutate(
+    Metric = case_when(
+      Metric == "Overall01" ~ "Overall",
+      Metric == "Invest01" ~ "Investability", 
+      Metric == "Growth01" ~ "Growth",
+      Metric == "Resilience01" ~ "Resilience"
+    ),
+    Metric = factor(Metric, levels = c("Overall", "Investability", "Growth", "Resilience")),
+    Industry_short = str_wrap(Industry, 25)
+  )
+
+p_heatmap <- heatmap_data %>%
+  ggplot(aes(x = Metric, y = reorder(Industry_short, Score), fill = Score)) +
+  geom_tile(color = "white", size = 0.5) +
+  geom_text(aes(label = Score), color = "white", fontface = "bold", size = 3) +
+  scale_fill_gradient(low = "#3498db", high = "#e74c3c", name = "Score") +
+  labs(title = "Industry Performance Heatmap",
+       subtitle = "Top 15 industries across all metrics",
+       x = "Metric", y = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray40", margin = margin(b = 15)),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 9),
+    legend.position = "right",
+    panel.grid = element_blank()
+  )
+
+ggsave("performance_heatmap.png", p_heatmap, width = 12, height = 14, dpi = 300)
+write_output("Performance Heatmap saved to: performance_heatmap.png")
 
 # Save plot to file
 ggsave("shock_resilience_plot.png", p2, width = 12, height = 8, dpi = 300)
@@ -245,15 +360,50 @@ quad <- metrics_scored %>%
   mutate(Momentum = as.numeric(scale(CAGR)),
          Resilience = 0.5*sREC_i + 0.3*sDD_i + 0.2*sVOL_i)
 
+# ---------- NEW VISUALIZATION 3: GROWTH VS RESILIENCE SCATTER ----------
+p_scatter <- metrics01 %>%
+  filter(!is.na(Growth01) & !is.na(Resilience01) & !is.na(Overall01)) %>%
+  ggplot(aes(x = Growth01, y = Resilience01, size = Overall01, color = Overall01)) +
+  geom_point(alpha = 0.7) +
+  scale_color_gradient(low = "#3498db", high = "#e74c3c", name = "Overall\nScore") +
+  scale_size_continuous(range = c(2, 8), name = "Overall\nScore") +
+  labs(title = "Growth vs Resilience Analysis",
+       subtitle = "Bubble size and color represent Overall Score",
+       x = "Growth Score", y = "Resilience Score") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray40", margin = margin(b = 15)),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+  ) +
+  geom_smooth(method = "lm", se = FALSE, color = "gray30", linetype = "dashed", alpha = 0.5) +
+  ggrepel::geom_text_repel(data = . %>% slice_max(Overall01, n = 5),
+                           aes(label = str_wrap(Industry, 20)), 
+                           size = 3, max.overlaps = 10, 
+                           box.padding = 0.5, point.padding = 0.3)
+
+ggsave("growth_vs_resilience_scatter.png", p_scatter, width = 14, height = 10, dpi = 300)
+write_output("Growth vs Resilience Scatter plot saved to: growth_vs_resilience_scatter.png")
+
+# ---------- ENHANCED INVESTABILITY QUADRANT ----------
 p3 <- ggplot(quad, aes(Momentum, Resilience, size = v1, color = Investability)) +
   geom_point(alpha = 0.85) +
   ggrepel::geom_text_repel(data = subset(quad, Industry %in% lab_inds),
                            aes(label = Industry), max.overlaps = 100, size = 3) +
-  scale_color_viridis_c() +
-  geom_vline(xintercept = 0, linetype = 2) +
-  geom_hline(yintercept = median(quad$Resilience, na.rm = TRUE), linetype = 2) +
-  labs(title = "Investability Quadrant (labels = Top/Bottom 5 only)",
-       x = "Momentum (z–CAGR)", y = "Resilience", size = "RVA 2023", color = "Investability")
+  scale_color_viridis_c(name = "Investability\nScore") +
+  scale_size_continuous(name = "RVA 2023\n($M)", labels = scales::comma) +
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
+  geom_hline(yintercept = median(quad$Resilience, na.rm = TRUE), linetype = 2, alpha = 0.5) +
+  labs(title = "Investment Opportunity Quadrant",
+       subtitle = "Momentum vs Resilience Analysis (Top/Bottom 5 labeled)",
+       x = "Momentum (z–CAGR)", y = "Resilience") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray40", margin = margin(b = 15)),
+    legend.position = "right"
+  )
 
 # Save plot to file
 ggsave("investability_quadrant_plot.png", p3, width = 14, height = 10, dpi = 300)
