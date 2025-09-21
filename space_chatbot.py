@@ -838,7 +838,7 @@ def main():
         st.markdown("### Analysis Tools")
         
         # Quick action buttons with proper handling
-        if st.button("Run Fresh Analysis", key="fresh_analysis", use_container_width=True):
+        if st.button("Run Analysis", key="fresh_analysis", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": "Run fresh space economy analysis"})
             with st.spinner("Running R analysis..."):
                 response = st.session_state.bot.run_fresh_analysis("run analysis")
